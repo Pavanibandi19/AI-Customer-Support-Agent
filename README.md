@@ -1,22 +1,24 @@
+
 # AI Customer Support Agent Using Agentic AI and MCP
 
-An end-to-end, Level 2 AI Engineering project demonstrating how to build an autonomous, grounded customer support assistant. The system connects an **Agent Orchestrator** to an independent **Model Context Protocol (MCP)** server over stdio transport, performing live database lookups, multi-step planning, reflection/verification, and ticket persistence in SQLite.
+An end-to-end, AI Engineering project demonstrating how to build an autonomous, grounded customer support assistant.
+
+The system connects an Agent Orchestrator to an independent Model Context Protocol (MCP) server over stdio transport. It performs live database lookups, multi-step planning, reflection and verification, and persistent support-ticket creation using SQLite.
+
+The project demonstrates how Agentic AI, MCP, local LLM integration, and deterministic execution can work together to build a reliable customer support system.
 
 ---
 
-## Table of Contents
+# Table of Contents
+
 1. [Project Overview & Problem Statement](#1-project-overview--problem-statement)
 2. [Key Objectives & Features](#2-key-objectives--features)
 3. [System Architecture](#3-system-architecture)
 4. [Core Concepts Explained](#4-core-concepts-explained)
-   - [What is Model Context Protocol (MCP)?](#what-is-model-context-protocol-mcp)
-   - [MCP vs. Direct Python Function Calls](#mcp-vs-direct-python-function-calls)
-   - [Tools vs. Resources vs. Prompts](#tools-vs-resources-vs-prompts)
-   - [The 7-Stage Agentic Workflow](#the-7-stage-agentic-workflow)
 5. [Why SQLite and Streamlit?](#5-why-sqlite-and-streamlit)
 6. [Folder Structure](#6-folder-structure)
 7. [Prerequisites](#7-prerequisites)
-8. [Installation & Setup (Windows PowerShell)](#8-installation--setup-windows-powershell)
+8. [Installation & Setup](#8-installation--setup-windows-powershell)
 9. [Ollama Local LLM Configuration](#9-ollama-local-llm-configuration)
 10. [Database Schema & Seed Data](#10-database-schema--seed-data)
 11. [Running the Application](#11-running-the-application)
@@ -27,355 +29,1026 @@ An end-to-end, Level 2 AI Engineering project demonstrating how to build an auto
 
 ---
 
-## 1. Project Overview & Problem Statement
+# 1. Project Overview & Problem Statement
 
-### The Problem
-Traditional e-commerce support systems force customers through rigid telephone trees, confusing self-service portals, or long waiting queues just to answer routine questions:
-- *"Where is my package?"*
-- *"When will it arrive?"*
-- *"Can I return this item?"*
-- *"My package arrived damaged; please open a ticket."*
+## The Problem
 
-Generic LLM chatbots often attempt to answer these questions by **hallucinating** plausible-sounding order numbers, fake tracking links, or invented policy details. When they do take actions, they lack deterministic verification, resulting in false claims that tickets have been created when no database record was written.
+Traditional e-commerce support systems often force customers through rigid telephone menus, confusing self-service portals, or long waiting queues just to answer routine questions:
 
-### The Solution
-The **AI Customer Support Agent** solves this through a grounded **Agentic Workflow** communicating with a true **Model Context Protocol (MCP)** server:
-1. It parses the customer's intent and extracts relevant identifiers (e.g., `ORD1001`, `CUST1003`).
-2. It formulates a concrete, bounded plan of action.
-3. It discovers and invokes official MCP tools via standard JSON-RPC over `stdio`.
-4. It reads actual tool outputs from a persistent SQLite database.
-5. It reflects on and verifies the facts before speaking (confirming dates, return policy windows, and database persistence).
-6. It synthesizes a concise, grounded response backed by genuine database evidence.
+- Where is my package?
+- When will it arrive?
+- Can I return this item?
+- My package arrived damaged. Can you create a support ticket?
 
----
+Generic LLM chatbots can generate plausible-sounding but incorrect responses, including invented order details, tracking information, and policy explanations.
 
-## 2. Key Objectives & Features
+When these systems perform actions, they may also claim that an operation succeeded without verifying whether the corresponding database operation actually took place.
 
-- **Genuine MCP Implementation:** Utilizes the official Python MCP SDK (`mcp` with `FastMCP`) on the server and `stdio_client` with `ClientSession` on the client.
-- **7 MCP Tools:** Covers order details, customer history, delivery tracking, return eligibility computation, return policies, ticket creation, and ticket status lookup.
-- **2 MCP Resources:** Exposes official company policy (`support://policies/returns`) and customer FAQ (`support://knowledge/faq`).
-- **2 MCP Prompts:** Provides reusable standardized templates (`customer_support_response` and `resolve_customer_issue`).
-- **Deterministic Reflection & Verification:** Strictly verifies that orders exist, return eligibility matches policy rules, and support tickets are confirmed in SQLite before informing the customer.
-- **Clarification on Ambiguity:** Politely prompts the customer for missing Order or Ticket IDs instead of guessing or executing arbitrary queries.
-- **Persistent Storage:** SQLite database seeded with 12 customers, 22 orders, and 3 tickets. New support tickets persist across restarts.
-- **Interactive Streamlit Interface:** Features real-time chat, live execution trace inspection, MCP status monitoring, sample scenario buttons, and an embedded database viewer.
-- **Comprehensive Evaluation Suite:** 22 benchmark test cases calculating tool selection accuracy, task success rate, grounded verification pass rate, and execution latency.
+## The Solution
+
+The AI Customer Support Agent addresses these problems through a grounded Agentic AI workflow connected to a genuine Model Context Protocol (MCP) server.
+
+The system:
+
+1. Understands the customer's request and identifies relevant entities, such as order IDs and customer IDs.
+2. Creates a structured, bounded execution plan.
+3. Discovers and invokes MCP tools through standard JSON-RPC communication over stdio.
+4. Retrieves actual information from a persistent SQLite database.
+5. Observes tool outputs and checks their results.
+6. Reflects on and verifies the retrieved information before responding.
+7. Generates a concise response grounded in verified database evidence.
+
+The agent avoids guessing missing identifiers and asks customers for clarification when necessary.
 
 ---
 
+# 2. Key Objectives & Features
+
+## Genuine MCP Implementation
+
+Uses the official Python MCP SDK:
+
+- FastMCP for the MCP server.
+- `stdio_client` for client-server communication.
+- `ClientSession` for managing the MCP session.
+- Runtime discovery of tools, resources, and prompts.
+
+The MCP server runs as an independent process and communicates with the agent through stdio transport.
+
+## MCP Tools
+
+The server exposes seven tools:
+
+| Tool | Purpose |
+|---|---|
+| `get_order(order_id)` | Retrieves order details |
+| `get_customer_orders(customer_id)` | Retrieves a customer's order history |
+| `check_delivery_status(order_id)` | Checks delivery and tracking information |
+| `check_return_eligibility(order_id)` | Evaluates whether an order meets return conditions |
+| `get_return_policy()` | Retrieves return policy information |
+| `create_support_ticket(customer_id, order_id, issue, description)` | Creates a support ticket |
+| `get_support_ticket(ticket_id)` | Retrieves an existing support ticket |
+
+## MCP Resources
+
+The server exposes two resources:
+
+| Resource URI | Purpose |
+|---|---|
+| `support://policies/returns` | Official return policy information |
+| `support://knowledge/faq` | Customer support FAQ information |
+
+## MCP Prompts
+
+Two reusable prompt templates are provided:
+
+- `customer_support_response`
+- `resolve_customer_issue`
+
+These templates provide standardized guidance for customer support responses and issue resolution.
+
+## Deterministic Reflection and Verification
+
+The agent verifies important results before responding.
+
+Examples include:
+
+- Checking whether an order actually exists.
+- Confirming delivery information using tool outputs.
+- Validating return eligibility against the policy rules.
+- Confirming that a support ticket was successfully created and persisted.
+- Avoiding unsupported claims when information is unavailable.
+
+## Clarification and Ambiguity Handling
+
+The agent requests missing identifiers instead of guessing.
+
+For example:
+
+Customer: "I need help with my order."
+
+Agent: "Could you please provide your Order ID so I can look up the correct order?"
+
+## Persistent Storage
+
+SQLite provides persistent storage for:
+
+- 12 fictional customers.
+- 22 fictional orders.
+- 3 initial support tickets.
+
+Newly created support tickets are stored in the database and persist across application restarts.
+
+## Interactive Streamlit Interface
+
+The application provides:
+
+- Interactive customer support chat.
+- Sample customer queries.
+- Agent execution trace inspection.
+- MCP connection status monitoring.
+- LLM status information.
+- Database inspection interface.
+
+## Evaluation Suite
+
+The evaluation package includes 22 benchmark scenarios covering different customer support workflows.
+
+It measures:
+
+- Tool Selection Accuracy.
+- Task Success Rate.
+- Grounded Response Pass Rate.
+- Average Response Latency.
+- Unexpected Tool Failures.
+
+---
 ## 3. System Architecture
 
 ```mermaid
-graph TD
-    User["Customer / User"] <--> UI["Streamlit User Interface - app.py"]
+flowchart TD
+    A[Customer] --> B[Streamlit UI - app.py]
+    B --> C[Agent Orchestrator]
 
-    subgraph Agentic["Agentic Orchestration Layer"]
-        UI <--> Orch["Agent Orchestrator - orchestrator.py"]
-        Orch --> Under["Stage A: Understand and Entity Extraction"]
-        Under --> Plan["Stage B: Plan and Tool Selection - planner.py"]
-        Plan --> Exec["Stage C: Bounded Execution Loop"]
-        Exec <--> MCPClient["MCP Client Wrapper - stdio ClientSession"]
-        Exec --> Obs["Stage D: Observe Tool Outputs"]
-        Obs --> Refl["Stage E: Reflect and Verify - reflection.py"]
-        Refl --> Resp["Stage F: Grounded Response Generation"]
-        Resp --> Trace["Stage G: Structured Diagnostic Trace"]
-    end
+    C --> D[Understand]
+    D --> E[Plan]
+    E --> F[Execute]
+    F --> G[Observe]
+    G --> H[Reflect and Verify]
+    H --> I[Generate Response]
+    I --> J[Execution Trace]
 
-    subgraph MCP["Model Context Protocol Boundary"]
-        MCPClient <-->|JSON-RPC over stdio| MCPServer["FastMCP Server - mcp_server/server.py"]
-    end
+    F <--> K[MCP Client]
+    K <--> T[JSON-RPC over stdio]
+    T <--> L[FastMCP Server]
 
-    subgraph Data["Data and Persistence Layer"]
-        MCPServer <--> DB[("SQLite Database - customer_support.db")]
-        DB --> T1["Customers"]
-        DB --> T2["Orders"]
-        DB --> T3["Deliveries"]
-        DB --> T4["Support Tickets"]
-    end
+    L <--> M[(SQLite Database)]
+    M --> N[Customers]
+    M --> O[Orders]
+    M --> P[Deliveries]
+    M --> Q[Support Tickets]
 
-    subgraph LLM["Local LLM Integration"]
-        Orch -.->|Optional inference| Ollama["Ollama Local LLM - llama3.2:3b"]
-        Orch -.->|Fallback| RuleEngine["Deterministic Grounded Rule Engine"]
-    end
+    C -.-> R[Ollama Local LLM]
+    C -.-> S[Deterministic Fallback]
 ```
-
 
 ## 4. Core Concepts Explained
 
-### What is Model Context Protocol (MCP)?
-The **Model Context Protocol (MCP)** is an open standard created by Anthropic that standardizes how AI applications provide tools, resources, and prompt templates to LLMs. Rather than writing proprietary, application-specific integrations for every database or API, MCP defines a universal client-server protocol using JSON-RPC.
+## What is Model Context Protocol (MCP)?
 
-### MCP vs. Direct Python Function Calls
-| Dimension | Direct Python Function Call | Genuine Model Context Protocol (MCP) |
-| :--- | :--- | :--- |
-| **Coupling** | Tight coupling; agent imports server module directly. | Decoupled; client and server communicate across process boundaries over standard I/O (`stdio`). |
-| **Discovery** | Hardcoded function references. | Dynamic discovery; client queries `list_tools()`, `list_resources()`, and `list_prompts()` at runtime. |
-| **Security** | Direct access to internal database connection objects and process memory. | Strict boundary; server validates parameters, enforces schemas, and isolates data. |
-| **Language Agnostic** | Python only. | Any MCP-compliant client (Python, TypeScript, Go, IDEs like Antigravity) can connect to the server. |
+Model Context Protocol (MCP) is an open standard originally introduced by Anthropic that standardizes how AI applications connect to external tools, resources, and prompt templates.
 
-### Tools vs. Resources vs. Prompts
-1. **Tools (`@mcp.tool()`):** Executable functions that take arguments, perform computation or database lookups, and return structured output.
-   - Example: `check_return_eligibility(order_id="ORD1001")`
-2. **Resources (`@mcp.resource()`):** Passive contextual data referenced by URI (like files or static documents) that the agent can read without performing stateful actions.
-   - Example: `support://policies/returns`
-3. **Prompts (`@mcp.prompt()`):** Standardized, parameterized prompt templates registered on the server to guide LLM reasoning and response formatting.
-   - Example: `customer_support_response(query=..., evidence=...)`
+Instead of creating a separate custom integration for every application or data source, MCP provides a standardized client-server communication protocol based on JSON-RPC.
 
-### The 7-Stage Agentic Workflow
-1. **UNDERSTAND:** Extracts entities (`ORD1001`, `CUST1003`, `TICKET1001`) and classifies intent.
-2. **PLAN:** Determines the required MCP tools and sequences them. If an identifier is missing, flags for clarification.
-3. **EXECUTE:** Invokes tools via the MCP client over `stdio` in a bounded loop.
-4. **OBSERVE:** Captures raw tool responses and handles status flags.
-5. **REFLECT / VERIFY:** Cross-references returned facts against policy rules and verifies database operations (e.g. verifying that a new ticket was assigned an ID).
-6. **RESPOND:** Formulates an empathetic, concise response strictly grounded in verified facts.
-7. **LOG / TRACE:** Emits a comprehensive execution trace showing latency, selected tools, input/output arguments, and verification status.
+In this project, MCP separates the Agent Orchestrator from the database operations handled by the independent MCP server.
+
+## MCP vs. Direct Python Function Calls
+
+| Dimension | Direct Python Function Call | Model Context Protocol |
+|---|---|---|
+| Coupling | Agent directly imports server functions | Client and server communicate through a protocol boundary |
+| Discovery | Function references are generally hardcoded | Client can discover tools, resources, and prompts at runtime |
+| Communication | Direct function invocation | JSON-RPC over stdio |
+| Separation | Components may share the same process | Independent client and server processes |
+| Language support | Depends on the Python implementation | Supports different MCP-compatible clients and servers |
+
+## Tools vs. Resources vs. Prompts
+
+MCP provides different ways to expose capabilities and information.
+
+**Tools (`@mcp.tool()`)**
+
+Executable operations that accept arguments and perform actions such as database lookups or ticket creation.
+
+Example:
+
+`check_return_eligibility(order_id="ORD1001")`
+
+**Resources (`@mcp.resource()`)**
+
+Read-only contextual information exposed through resource URIs.
+
+Example:
+
+`support://policies/returns`
+
+**Prompts (`@mcp.prompt()`)**
+
+Reusable prompt templates that provide standardized instructions or response structures.
+
+Example:
+
+`customer_support_response(query=..., evidence=...)`
+
+## The 7-Stage Agentic Workflow
+
+The application follows a structured seven-stage workflow.
+
+### Stage A: Understand
+
+- Receives the customer's natural-language query.
+- Identifies the intent.
+- Extracts relevant entities such as ORD1001, CUST1003, and TICKET1001.
+- Identifies missing information.
+
+### Stage B: Plan
+
+- Determines the required MCP tools.
+- Creates an execution sequence.
+- Handles ambiguous requests.
+- Prevents unnecessary tool execution.
+
+### Stage C: Execute
+
+- Invokes the selected tools through the MCP client.
+- Communicates with the independent MCP server over stdio.
+- Uses a bounded execution loop.
+
+### Stage D: Observe
+
+- Captures MCP tool responses.
+- Inspects returned data and status information.
+- Handles missing or unsuccessful results.
+
+### Stage E: Reflect and Verify
+
+- Checks whether the returned information supports the requested answer.
+- Validates relevant policy conditions.
+- Verifies database operations before claiming success.
+
+### Stage F: Respond
+
+- Generates a concise and understandable response.
+- Uses verified database information.
+- Avoids unsupported claims and invented details.
+
+### Stage G: Log and Trace
+
+- Records the execution workflow.
+- Displays selected tools and execution details.
+- Tracks latency and verification information.
+- Helps inspect the agent's decisions and behavior.
 
 ---
 
-## 5. Why SQLite and Streamlit?
+# 5. Why SQLite and Streamlit?
 
-- **SQLite:** A self-contained, serverless, zero-configuration SQL database engine. It provides true relational data modeling (foreign keys, joins, constraints), persistent changes across restarts, and complete protection against SQL injection using parameterized queries (`?` placeholders).
-- **Streamlit:** A powerful Python framework for rapidly building data and AI web applications. It allows interactive chat interfaces, expandable state inspection, and real-time database views without requiring complex frontend build tooling.
+## SQLite
+
+SQLite is a lightweight, serverless relational database engine.
+
+It is suitable for this project because it provides:
+
+- Persistent data storage.
+- Relational tables and foreign-key relationships.
+- SQL queries and constraints.
+- Transaction support.
+- No separate database server installation.
+- Parameterized queries for safer database operations.
+
+The project uses SQLite to store customer records, order information, delivery information, and support tickets.
+
+## Streamlit
+
+Streamlit is a Python framework for building interactive data and AI applications.
+
+It is used to provide:
+
+- A conversational customer support interface.
+- Interactive sample queries.
+- Expandable execution traces.
+- MCP and LLM status information.
+- Database inspection.
+
+Streamlit allows the project to have a functional web interface without requiring a separate frontend framework.
 
 ---
 
-## 6. Folder Structure
+# 6. Folder Structure
 
+```text
+AI-Customer-Support-Agent/
+│
+├── app.py
+├── config.py
+├── requirements.txt
+├── .env.example
+├── .gitignore
+├── README.md
+│
+├── agent/
+│   ├── __init__.py
+│   ├── orchestrator.py
+│   ├── planner.py
+│   ├── reflection.py
+│   ├── mcp_client.py
+│   └── llm_client.py
+│
+├── mcp_server/
+│   ├── __init__.py
+│   ├── server.py
+│   ├── database.py
+│   └── seed_data.py
+│
+├── evaluation/
+│   ├── __init__.py
+│   ├── test_cases.json
+│   ├── evaluate_agent.py
+│   └── evaluation_report.md
+│
+├── tests/
+│   ├── test_agent.py
+│   ├── test_conversational_memory.py
+│   ├── test_database.py
+│   └── test_mcp_server.py
+│
+└── data/
+    └── .gitkeep
 ```
-ai-customer-support-agent/
-│
-├── app.py                      # Interactive Streamlit Web Interface
-├── config.py                   # Centralized configuration & environment loader
-├── requirements.txt            # Pinned dependencies (mcp<2, streamlit, etc.)
-├── .env.example                # Template for environment settings
-├── .gitignore                  # Git ignore rules for virtualenvs, caches, etc.
-├── README.md                   # Complete architectural & operational documentation
-│
-├── agent/                      # Agent Orchestration Package
-│   ├── __init__.py
-│   ├── orchestrator.py         # 7-stage agent lifecycle coordinator
-│   ├── planner.py              # Entity extraction, intent classification & plan builder
-│   ├── reflection.py           # Result verification & factual grounding checker
-│   ├── mcp_client.py           # Official Python MCP client wrapper (stdio ClientSession)
-│   └── llm_client.py           # Ollama client with health check & fallback routing
-│
-├── mcp_server/                 # MCP Server Package
-│   ├── __init__.py
-│   ├── server.py               # FastMCP server (7 tools, 2 resources, 2 prompts)
-│   ├── database.py             # SQLite access layer with parameterized queries
-│   └── seed_data.py            # Fictional seed data (12 customers, 22 orders, 3 tickets)
-│
-├── evaluation/                 # Evaluation & Benchmarking Package
-│   ├── __init__.py
-│   ├── test_cases.json         # 22 diverse benchmark test scenarios
-│   ├── evaluate_agent.py       # Benchmark runner computing accuracy, success rate, latency
-│   └── evaluation_report.md    # Generated evaluation report with metrics table
-│
-├── tests/                      # Automated Test Suite (pytest)
-│   ├── test_database.py        # Database operations & SQL injection defense tests
-│   ├── test_mcp_server.py      # MCP server tools, resources, and prompt discovery tests
-│   └── test_agent.py           # Agent planner, orchestrator, and scenario tests
-│
-└── data/                       # Persistent Storage Directory
-    ├── .gitkeep
-    └── customer_support.db     # Auto-generated SQLite database (persists changes)
-```
+
+## Important Files
+
+| File | Responsibility |
+|---|---|
+| `app.py` | Streamlit user interface |
+| `config.py` | Centralized application configuration |
+| `agent/orchestrator.py` | Agent lifecycle coordination |
+| `agent/planner.py` | Intent classification, entity extraction, and planning |
+| `agent/reflection.py` | Result verification and grounding |
+| `agent/mcp_client.py` | MCP client communication |
+| `agent/llm_client.py` | Ollama integration and fallback routing |
+| `mcp_server/server.py` | FastMCP server implementation |
+| `mcp_server/database.py` | SQLite database operations |
+| `mcp_server/seed_data.py` | Fictional seed data |
+| `evaluation/evaluate_agent.py` | Benchmark evaluation runner |
+| `evaluation/test_cases.json` | Benchmark scenarios |
+| `evaluation/evaluation_report.md` | Evaluation results |
+| `tests/` | Automated test suite |
+
+The SQLite database is initialized automatically when required and is stored locally in the `data/` directory.
 
 ---
 
-## 7. Prerequisites
+# 7. Prerequisites
 
-1. **Operating System:** Windows 10/11, macOS, or Linux.
-2. **Python:** Python 3.10, 3.11, or 3.12 (Python 3.11.9 recommended).
-3. **Optional Local LLM:** [Ollama](https://ollama.com/) with model `llama3.2:3b`.
-   - *Note: If Ollama is not installed or running, the system automatically uses its built-in deterministic fallback engine, maintaining 100% functionality for all tools and workflows.*
+Before running the project, install the following:
+
+| Requirement | Version / Details |
+|---|---|
+| Operating System | Windows 10/11, macOS, or Linux |
+| Python | 3.10, 3.11, or 3.12 |
+| pip | Python package installer |
+| Git | Required for cloning the repository |
+| Ollama | Optional |
+| LLM Model | `llama3.2:3b` (optional) |
+
+Python 3.11.9 is recommended.
+
+**Note:** Ollama is optional. If the local LLM is unavailable, the application can use its deterministic fallback engine for supported workflows.
 
 ---
 
-## 8. Installation & Setup (Windows PowerShell)
+# 8. Installation & Setup (Windows PowerShell)
 
-Follow these exact steps in **Windows PowerShell**:
+Follow these steps to run the project locally.
 
-### Step 1: Open the Project Directory
+## Step 1: Clone the GitHub Repository
+
 ```powershell
-cd "c:\Users\BandiPavaniKrishnave\Documents\Level 2"
+git clone https://github.com/Pavanibandi19/AI-Customer-Support-Agent.git
 ```
 
-### Step 2: Create and Activate Virtual Environment
+## Step 2: Navigate to the Project Directory
+
 ```powershell
-# Create virtual environment
+cd AI-Customer-Support-Agent
+```
+
+## Step 3: Create a Virtual Environment
+
+```powershell
 python -m venv venv
+```
 
-# Activate virtual environment
+## Step 4: Activate the Virtual Environment
+
+```powershell
 .\venv\Scripts\Activate.ps1
 ```
-*(If PowerShell displays an execution policy error, run: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned`)*
 
-### Step 3: Install Dependencies
+If PowerShell displays an execution policy error, run:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+```
+
+Then activate the environment again:
+
+```powershell
+.\venv\Scripts\Activate.ps1
+```
+
+## Step 5: Install Dependencies
+
 ```powershell
 pip install -r requirements.txt
 ```
 
-### Step 4: Configure Environment Variables
+## Step 6: Configure Environment Variables
+
+Create a local `.env` file from the example:
+
 ```powershell
 Copy-Item .env.example .env
 ```
 
----
+Review the environment variables and adjust them if necessary.
 
-## 9. Ollama Local LLM Configuration
-
-To run with Ollama:
-1. Download and install Ollama from [ollama.com](https://ollama.com/download).
-2. Open a terminal and pull the recommended lightweight model:
-   ```bash
-   ollama pull llama3.2:3b
-   ```
-3. Start the Ollama background daemon:
-   ```bash
-   ollama serve
-   ```
-4. In `.env`, ensure the configuration points to your Ollama endpoint:
-   ```env
-   OLLAMA_BASE_URL=http://localhost:11434
-   OLLAMA_MODEL=llama3.2:3b
-   DEMO_MODE=auto
-   ```
-
-*(If Ollama is offline, the agent automatically runs in labeled **Deterministic Fallback Mode**, ensuring all tests, evaluations, and tools operate without interruption).*
+Do not commit your actual `.env` file or credentials to GitHub.
 
 ---
 
-## 10. Database Schema & Seed Data
+# 9. Ollama Local LLM Configuration
 
-The database initializes automatically in `data/customer_support.db` on first run.
+The project supports optional local LLM inference through Ollama.
 
-### Tables
-1. **`customers`:** `customer_id` (PK), `name`, `email`, `phone`, `membership_tier`, `created_at`
-2. **`orders`:** `order_id` (PK), `customer_id` (FK), `order_date`, `status`, `total_amount`, `item_name`, `category`, `is_final_sale`
-3. **`deliveries`:** `delivery_id` (PK), `order_id` (FK), `carrier`, `tracking_number`, `status`, `estimated_delivery_date`, `actual_delivery_date`, `delivery_address`
-4. **`support_tickets`:** `ticket_id` (PK), `customer_id` (FK), `order_id` (FK), `issue`, `description`, `status`, `priority`, `created_at`, `updated_at`
+## Step 1: Install Ollama
 
-### Representative Seed Records
-| Order ID | Customer | Item Description | Status | Delivered Date / Est. | Return Eligible? |
-| :---: | :---: | :--- | :---: | :---: | :---: |
-| `ORD1001` | `CUST1001` | Wireless Noise-Canceling Headphones | Delivered | 2026-10-15 | **Yes** (5 days ago, within 30d) |
-| `ORD1002` | `CUST1001` | Winter Thermal Parka | In Transit | Est: 2026-10-23 | **No** (Undelivered) |
-| `ORD1003` | `CUST1002` | Espresso Coffee Machine | Delivered | 2026-09-05 | **No** (45 days ago, expired window) |
-| `ORD1004` | `CUST1003` | Ergonomic Mechanical Keyboard | Delivered | 2026-10-18 | **Yes** (Ready for damaged ticket) |
-| `ORD1005` | `CUST1004` | AI Engineering: Principles & Systems | Processing | Est: 2026-10-25 | **No** (Undelivered) |
-| `ORD1006` | `CUST1005` | Non-Slip Yoga Mat & Blocks | Cancelled | None | **No** (Cancelled order) |
-| `ORD1007` | `CUST1006` | Clearance Running Shoes (Final Sale) | Delivered | 2026-10-10 | **No** (Final Sale restriction) |
+Download Ollama from:
+
+https://ollama.com/
+
+## Step 2: Download the Model
+
+Open a terminal and run:
+
+```powershell
+ollama pull llama3.2:3b
+```
+
+## Step 3: Start the Ollama Service
+
+```powershell
+ollama serve
+```
+
+If Ollama is already running as a background service, you do not need to start another instance.
+
+## Step 4: Configure the Environment
+
+In your `.env` file, configure:
+
+```env
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.2:3b
+DEMO_MODE=auto
+```
+
+Use the exact variable names provided in `.env.example`.
+
+## Fallback Behavior
+
+When Ollama is unavailable, the application can use its deterministic fallback engine.
+
+This allows supported customer support workflows to operate without requiring a running local LLM.
+
+The fallback mode should not be confused with LLM-generated responses; it uses the application's deterministic logic.
 
 ---
 
-## 11. Running the Application
+# 10. Database Schema & Seed Data
 
-Launch the Streamlit web application:
+The project uses SQLite for persistent storage.
+
+The database is initialized automatically when required.
+
+Default database location:
+
+`data/customer_support.db`
+
+## Database Tables
+
+### 1. Customers
+
+Stores customer information.
+
+| Column | Description |
+|---|---|
+| customer_id | Primary key |
+| name | Customer name |
+| email | Customer email |
+| phone | Customer phone |
+| membership_tier | Membership category |
+| created_at | Account creation timestamp |
+
+### 2. Orders
+
+Stores customer order information.
+
+| Column | Description |
+|---|---|
+| order_id | Primary key |
+| customer_id | Customer reference |
+| order_date | Order date |
+| status | Order status |
+| total_amount | Order amount |
+| item_name | Purchased item |
+| category | Product category |
+| is_final_sale | Final-sale indicator |
+
+### 3. Deliveries
+
+Stores delivery and tracking information.
+
+| Column | Description |
+|---|---|
+| delivery_id | Primary key |
+| order_id | Order reference |
+| carrier | Delivery carrier |
+| tracking_number | Tracking identifier |
+| status | Delivery status |
+| estimated_delivery_date | Estimated delivery date |
+| actual_delivery_date | Actual delivery date |
+| delivery_address | Delivery address |
+
+### 4. Support Tickets
+
+Stores customer support tickets.
+
+| Column | Description |
+|---|---|
+| ticket_id | Primary key |
+| customer_id | Customer reference |
+| order_id | Related order |
+| issue | Issue category |
+| description | Issue description |
+| status | Ticket status |
+| priority | Ticket priority |
+| created_at | Creation timestamp |
+| updated_at | Last update timestamp |
+
+## Seed Data
+
+The initial database contains fictional demonstration data:
+
+- 12 customers.
+- 22 orders.
+- 3 support tickets.
+
+The seed data is used to demonstrate order tracking, return eligibility, customer history, and support ticket workflows.
+
+**Note:** These are static demonstration records. Their dates and statuses represent the seeded dataset and should not be interpreted as live delivery information.
+
+---
+
+# 11. Running the Application
+
+After completing installation and configuration, activate your virtual environment and navigate to the project directory.
+
+Run:
+
 ```powershell
 streamlit run app.py
 ```
-Open your browser to the URL displayed in the terminal:
-👉 **`http://localhost:8501`**
+
+Streamlit will start the local web server.
+
+Open the URL displayed in the terminal:
+
+http://localhost:8501
+
+## Application Features
+
+The Streamlit application provides:
+
+- Customer support chat.
+- Sample queries for testing different workflows.
+- Agent execution traces.
+- MCP server status.
+- LLM availability information.
+- Database inspection.
+
+The application can be stopped using `Ctrl + C` in the terminal.
 
 ---
 
-## 12. Running Automated Tests & Evaluation
+# 12. Running Automated Tests & Evaluation
 
-### Run Automated Unit & Integration Tests (pytest)
+The project includes automated tests and a separate evaluation benchmark.
+
+## A. Run Automated Tests
+
+Execute:
+
 ```powershell
-pytest -v
+python -m pytest -v
 ```
-*Expected Result:* 28 passed in ~90 seconds across database, MCP server, tools, reflection, and scenarios.
 
-### Run Benchmark Evaluation (22 Scenarios)
+This runs the automated test suite covering:
+
+- Database operations.
+- MCP server functionality.
+- Tool discovery and execution.
+- Agent planning.
+- Orchestration.
+- Conversational memory.
+- Customer support workflows.
+
+### Previously Recorded Test Results
+
+The full test suite previously completed with:
+
+```text
+50 passed
+```
+
+The full run took approximately 14 minutes.
+
+After the latest refund-query changes, the focused regression test completed with:
+
+```text
+1 passed, 22 deselected
+```
+
+The full test suite should be rerun after the latest changes before treating the 50-test result as the final submission result.
+
+## B. Run Benchmark Evaluation
+
+Execute:
+
 ```powershell
 python evaluation/evaluate_agent.py
 ```
-*Expected Result:*
-```
-=================================================================
+
+The evaluation runner executes the 22 benchmark scenarios defined in:
+
+`evaluation/test_cases.json`
+
+It measures the following:
+
+| Metric | Description |
+|---|---|
+| Tool Selection Accuracy | Whether the appropriate tools were selected |
+| Task Success Rate | Whether the requested task was completed |
+| Grounded Response Pass Rate | Whether responses were supported by verified information |
+| Average Response Latency | Average end-to-end response time |
+| Unexpected Tool Failures | Unexpected failures during tool execution |
+
+### Previously Recorded Evaluation Results
+
+The previously completed benchmark reported:
+
+```text
+=============================================================
                      EVALUATION RESULTS
-=================================================================
+=============================================================
 Total Test Cases Evaluated:       22
 Tool Selection Accuracy:          100.0% (22/22)
 Task Success Rate:                100.0% (22/22)
 Grounded Response Pass Rate:      100.0% (22/22)
-Average Response Latency:         ~6900 ms
+Average Response Latency:         6170.90 ms
 Unexpected Tool Failures:         0
-=================================================================
+=============================================================
 ```
-Full markdown metrics are automatically written to `evaluation/evaluation_report.md`.
+
+These results were recorded before the latest refund-query modifications. Rerun the evaluation to establish the final results for the current code.
+
+The evaluation runner writes its results to:
+
+`evaluation/evaluation_report.md`
 
 ---
 
-## 13. Demonstration Scenarios & Example Queries
+# 13. Demonstration Scenarios & Example Queries
 
-### Scenario 1: Order Tracking
-- **Query:** `Where is order ORD1001?`
-- **MCP Tools Called:** `get_order`, `check_delivery_status`
-- **Grounding:** Confirms order is `Delivered` via FedEx (Tracking: `FDX-99881122`).
+The following scenarios demonstrate the different capabilities of the customer support agent.
 
-### Scenario 2: Delivery Follow-Up
-- **Query:** `My order ORD1002 has not arrived. When will it be delivered?`
-- **MCP Tools Called:** `get_order`, `check_delivery_status`
-- **Grounding:** Reports order is `In Transit` via UPS with expected delivery date `2026-10-23`.
+## Scenario 1: Order Tracking
 
-### Scenario 3: Return Eligibility Check (Expired)
-- **Query:** `Can I return order ORD1003?`
-- **MCP Tools Called:** `get_order`, `check_return_eligibility`
-- **Grounding:** Ineligible because delivered 45 days ago, exceeding the 30-day policy limit.
+**Query:**
 
-### Scenario 4: Damaged Item & Ticket Creation
-- **Query:** `My order ORD1004 arrived damaged. Please create a support ticket.`
-- **MCP Tools Called:** `get_order`, `create_support_ticket`
-- **Grounding:** Verifies order, dynamically binds customer `CUST1003`, inserts new ticket into SQLite, and returns verified ID (e.g., `TICKET1004`).
+"Where is order ORD1001?"
 
-### Scenario 5: Check Existing Ticket
-- **Query:** `What is the status of ticket TICKET1001?`
-- **MCP Tools Called:** `get_support_ticket`
-- **Grounding:** Confirms ticket `TICKET1001` exists with status `RESOLVED`.
+**Expected workflow:**
 
-### Scenario 6: Unknown Order Handling
-- **Query:** `Where is order ORD9999?`
-- **MCP Tools Called:** `get_order`
-- **Grounding:** Correctly detects `ORD9999` does not exist; never invents fake dates or tracking numbers.
+- Retrieve the order.
+- Check delivery status.
+- Return the available carrier and tracking information.
 
-### Scenario 7: Ambiguous Request Clarification
-- **Query:** `I need help with my order.`
-- **MCP Tools Called:** None (short-circuits before executing unnecessary queries)
-- **Clarification:** Politely requests the customer's Order ID (e.g. `ORD1001`).
+**MCP Tools:**
 
-### Scenario 8: Return Policy FAQ
-- **Query:** `What is your return policy?`
-- **MCP Resource Read:** `support://policies/returns`
-- **Grounding:** Explains 30-day window, original condition requirements, and final sale exclusions.
+- `get_order`
+- `check_delivery_status`
 
-### Scenario 9: Multi-Step Request
-- **Query:** `Check order ORD1001, tell me its delivery status, and check whether it can be returned.`
-- **MCP Tools Called:** `get_order`, `check_delivery_status`, `check_return_eligibility`
-- **Grounding:** Consolidates delivery date and return eligibility into a single structured response.
+**Grounding:**
+
+The response should be based on the actual seeded order and delivery records, not invented tracking information.
+
+## Scenario 2: Delivery Follow-Up
+
+**Query:**
+
+"My order ORD1002 has not arrived. When will it be delivered?"
+
+**Expected workflow:**
+
+- Retrieve order information.
+- Check delivery details.
+- Report the available delivery status and estimated date.
+
+**MCP Tools:**
+
+- `get_order`
+- `check_delivery_status`
+
+## Scenario 3: Return Eligibility Check
+
+**Query:**
+
+"Can I return order ORD1003?"
+
+**Expected workflow:**
+
+- Retrieve order information.
+- Check return eligibility.
+- Explain the result using the return policy.
+
+**MCP Tools:**
+
+- `get_order`
+- `check_return_eligibility`
+
+## Scenario 4: Damaged Item and Ticket Creation
+
+**Query:**
+
+"My order ORD1004 arrived damaged. Please create a support ticket."
+
+**Expected workflow:**
+
+1. Retrieve the order.
+2. Identify the associated customer.
+3. Create a support ticket.
+4. Verify that the ticket was successfully persisted.
+5. Return the confirmed ticket ID.
+
+**MCP Tools:**
+
+- `get_order`
+- `create_support_ticket`
+
+## Scenario 5: Check Existing Ticket
+
+**Query:**
+
+"What is the status of ticket TICKET1001?"
+
+**Expected workflow:**
+
+- Retrieve the ticket from the database.
+- Report its actual status.
+
+**MCP Tool:**
+
+- `get_support_ticket`
+
+## Scenario 6: Unknown Order Handling
+
+**Query:**
+
+"Where is order ORD9999?"
+
+**Expected workflow:**
+
+- Attempt to retrieve the specified order.
+- Detect that the order does not exist.
+- Inform the customer that the order could not be found.
+
+**MCP Tool:**
+
+- `get_order`
+
+The agent should not invent delivery dates, carriers, or tracking numbers.
+
+## Scenario 7: Ambiguous Request Clarification
+
+**Query:**
+
+"I need help with my order."
+
+**Expected workflow:**
+
+- Identify that the request is ambiguous.
+- Avoid selecting an unrelated historical order.
+- Ask the customer for the required Order ID.
+
+No unnecessary MCP database lookup should be performed.
+
+## Scenario 8: Return Policy FAQ
+
+**Query:**
+
+"What is your return policy?"
+
+**Expected workflow:**
+
+- Read the return policy resource.
+- Explain the relevant conditions, eligibility window, and exclusions.
+
+**MCP Resource:**
+
+`support://policies/returns`
+
+## Scenario 9: Multi-Step Request
+
+**Query:**
+
+"Check order ORD1001, tell me its delivery status, and check whether it can be returned."
+
+**Expected workflow:**
+
+- Retrieve the order.
+- Check delivery status.
+- Check return eligibility.
+- Combine the verified results into one response.
+
+**MCP Tools:**
+
+- `get_order`
+- `check_delivery_status`
+- `check_return_eligibility`
+
+## Additional Query Testing
+
+The project can also be tested with:
+
+- "Show all my orders for customer CUST1001."
+- "When will I receive my refund?"
+- "What condition should an item be in for a return?"
+- "Can you create a support ticket for my damaged order?"
+- "Show the status of ticket TICKET1001."
+- "My order was delivered by DHL. Is that correct?"
+
+These queries help evaluate customer history retrieval, policy understanding, refund information, ticket persistence, and resistance to incorrect user-provided assumptions.
 
 ---
 
-## 14. Troubleshooting & Common Errors
+# 14. Troubleshooting & Common Errors
 
-1. **`ModuleNotFoundError: No module named 'mcp.server.fastmcp'`**
-   - *Cause:* Installing `mcp>=2.0.0` where FastMCP was renamed.
-   - *Fix:* Ensure `mcp>=1.2.0,<2.0.0` is installed (pinned in `requirements.txt`).
-2. **`Connection refused to http://localhost:11434`**
-   - *Cause:* Ollama daemon is not running.
-   - *Fix:* Start `ollama serve` or leave `DEMO_MODE=auto` to use the automatic deterministic fallback engine.
-3. **PowerShell Script Execution Error (`Activate.ps1 cannot be loaded`)**
-   - *Fix:* Execute `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned` in your PowerShell session.
-4. **`database is locked`**
-   - *Cause:* Concurrently modifying the SQLite file.
-   - *Fix:* Database helper uses scoped context managers that close transactions immediately.
+## Error 1: ModuleNotFoundError
+
+Example:
+
+`No module named 'mcp.server.fastmcp'`
+
+**Possible cause:**
+
+An incompatible MCP package version is installed.
+
+**Solution:**
+
+The project uses the MCP SDK version range specified in `requirements.txt`.
+
+Reinstall dependencies:
+
+```powershell
+pip install -r requirements.txt
+```
+
+The project expects the compatible MCP SDK API used by its FastMCP implementation.
+
+## Error 2: Ollama Connection Refused
+
+Example:
+
+`Connection refused to http://localhost:11434`
+
+**Cause:**
+
+Ollama is not running or the configured endpoint is unavailable.
+
+**Solution:**
+
+Start Ollama:
+
+```powershell
+ollama serve
+```
+
+Alternatively, use the configured deterministic fallback mode.
+
+## Error 3: PowerShell Script Execution Error
+
+Example:
+
+`Activate.ps1 cannot be loaded because running scripts is disabled`
+
+**Solution:**
+
+Run:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+```
+
+Then activate the virtual environment again.
+
+## Error 4: SQLite Database Locked
+
+**Possible cause:**
+
+Concurrent database operations or an unclosed transaction.
+
+**Solution:**
+
+The database layer uses scoped database connections and transaction handling. If the issue persists, stop duplicate application processes and restart the application.
+
+## Error 5: Streamlit Application Does Not Start
+
+**Possible causes:**
+
+- Virtual environment is not activated.
+- Dependencies are missing.
+- Incorrect project directory.
+- Port 8501 is already in use.
+
+**Solution:**
+
+Verify the active environment and reinstall dependencies if required.
+
+Run:
+
+```powershell
+streamlit run app.py
+```
 
 ---
 
-## 15. Limitations & Future Enhancements
+# 15. Limitations & Future Enhancements
 
-- **Single-Agent Scope:** The current version uses a bounded orchestrator. A Level 3 extension could add specialized multi-agent subagents (e.g. `LogisticsAgent`, `ReturnsAgent`, `EscalationsAgent`).
-- **Authentication:** In a production system, customer session identity would be derived from JWT/OAuth tokens rather than query text.
-- **Human-in-the-Loop:** Future iterations can add Streamlit interactive approval dialogs before writing irreversible database actions.
+Although the current implementation demonstrates a functional Agentic AI customer support workflow, several improvements can be explored in future versions.
+
+## 1. Single-Agent Architecture
+
+The current system uses one bounded Agent Orchestrator.
+
+A future Level 3 extension could introduce specialized agents such as:
+
+- Logistics Agent.
+- Returns Agent.
+- Customer History Agent.
+- Escalation Agent.
+
+These agents could collaborate on more complex customer requests.
+
+## 2. Authentication and Authorization
+
+The current project uses fictional demonstration customer data.
+
+A production implementation should authenticate users and derive customer identity from secure session information, such as JWT or OAuth-based authentication, rather than trusting identifiers supplied in natural-language queries.
+
+## 3. Human-in-the-Loop Approval
+
+Future versions could include interactive approval workflows before performing sensitive or irreversible operations.
+
+For example, a customer support ticket or refund action could require an approval step.
+
+## 4. External API Integrations
+
+The current system uses a local SQLite database and fictional demonstration records.
+
+Future improvements could integrate:
+
+- Real order management systems.
+- External delivery tracking APIs.
+- Payment and refund services.
+- Customer relationship management systems.
+
+## 5. Advanced Evaluation
+
+Future versions could expand the benchmark suite with:
+
+- More complex multi-step conversations.
+- Additional ambiguity and adversarial test cases.
+- Larger datasets.
+- Tool execution reliability measurements.
+- Response quality and latency comparisons across LLMs.
+
+---
+
+# Conclusion
+
+The AI Customer Support Agent demonstrates how Agentic AI and the Model Context Protocol can be combined to build a grounded, modular, and verifiable customer support application.
+
+By separating the Agent Orchestrator from the MCP server, the project demonstrates standardized tool discovery and execution, independent server communication, database-backed information retrieval, bounded planning, reflection, and verification.
+
+The integration of SQLite, Streamlit, FastMCP, and optional local LLM inference provides a practical foundation for understanding and implementing agent-based AI engineering systems.
+
+**Technologies Used:**
+
+Python | Agentic AI | Model Context Protocol (MCP) | FastMCP | JSON-RPC | SQLite | Streamlit | Ollama | pytest
+
+---
+
+**Repository:** https://github.com/Pavanibandi19/AI-Customer-Support-Agent
+
