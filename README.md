@@ -67,39 +67,38 @@ The **AI Customer Support Agent** solves this through a grounded **Agentic Workf
 
 ```mermaid
 graph TD
-    User([Customer / User]) <--> UI[Streamlit User Interface (app.py)]
-    
-    subgraph Agentic Orchestration Layer
-        UI <--> Orch[Agent Orchestrator (orchestrator.py)]
-        Orch --> Under[Stage A: Understand & Entity Extraction]
-        Under --> Plan[Stage B: Plan & Tool Selection (planner.py)]
-        Plan --> Exec[Stage C: Bounded Execution Loop]
-        Exec <--> MCPClient[MCP Client Wrapper (stdio ClientSession)]
-        Exec --> Obs[Stage D: Observe Tool Outputs]
-        Obs --> Refl[Stage E: Reflect & Verify (reflection.py)]
-        Refl --> Resp[Stage F: Grounded Response Generation]
-        Resp --> Trace[Stage G: Structured Diagnostic Trace]
+    User["Customer / User"] <--> UI["Streamlit User Interface - app.py"]
+
+    subgraph Agentic["Agentic Orchestration Layer"]
+        UI <--> Orch["Agent Orchestrator - orchestrator.py"]
+        Orch --> Under["Stage A: Understand and Entity Extraction"]
+        Under --> Plan["Stage B: Plan and Tool Selection - planner.py"]
+        Plan --> Exec["Stage C: Bounded Execution Loop"]
+        Exec <--> MCPClient["MCP Client Wrapper - stdio ClientSession"]
+        Exec --> Obs["Stage D: Observe Tool Outputs"]
+        Obs --> Refl["Stage E: Reflect and Verify - reflection.py"]
+        Refl --> Resp["Stage F: Grounded Response Generation"]
+        Resp --> Trace["Stage G: Structured Diagnostic Trace"]
     end
 
-    subgraph Model Context Protocol (MCP) Boundary
-        MCPClient <== JSON-RPC over stdio ==> MCPServer[FastMCP Server (mcp_server/server.py)]
+    subgraph MCP["Model Context Protocol Boundary"]
+        MCPClient <-->|JSON-RPC over stdio| MCPServer["FastMCP Server - mcp_server/server.py"]
     end
 
-    subgraph Data & Persistence Layer
-        MCPServer <--> DB[(SQLite Database: customer_support.db)]
-        DB --> T1[customers]
-        DB --> T2[orders]
-        DB --> T3[deliveries]
-        DB --> T4[support_tickets]
+    subgraph Data["Data and Persistence Layer"]
+        MCPServer <--> DB[("SQLite Database - customer_support.db")]
+        DB --> T1["Customers"]
+        DB --> T2["Orders"]
+        DB --> T3["Deliveries"]
+        DB --> T4["Support Tickets"]
     end
 
-    subgraph Local LLM Integration
-        Orch -. Optional Inference .-> Ollama[Ollama Local LLM (llama3.2:3b)]
-        Orch -. Fallback .-> RuleEngine[Deterministic Grounded Rule Engine]
+    subgraph LLM["Local LLM Integration"]
+        Orch -.->|Optional inference| Ollama["Ollama Local LLM - llama3.2:3b"]
+        Orch -.->|Fallback| RuleEngine["Deterministic Grounded Rule Engine"]
     end
 ```
 
----
 
 ## 4. Core Concepts Explained
 
