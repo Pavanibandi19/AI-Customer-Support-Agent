@@ -1,0 +1,222 @@
+[
+  {
+    "id": "TC01",
+    "category": "Order Tracking",
+    "query": "Where is order ORD1001?",
+    "expected_intent": "order_tracking",
+    "expected_tools": ["get_order", "check_delivery_status"],
+    "requires_clarification": false,
+    "should_pass_verification": true,
+    "description": "Standard tracking request for delivered order ORD1001"
+  },
+  {
+    "id": "TC02",
+    "category": "Order Tracking",
+    "query": "Can you track my order ORD1008?",
+    "expected_intent": "order_tracking",
+    "expected_tools": ["get_order", "check_delivery_status"],
+    "requires_clarification": false,
+    "should_pass_verification": true,
+    "description": "Tracking request for shipped television order ORD1008"
+  },
+  {
+    "id": "TC03",
+    "category": "Delivery Follow-Up",
+    "query": "My order ORD1002 has not arrived. When will it be delivered?",
+    "expected_intent": "delivery_followup",
+    "expected_tools": ["get_order", "check_delivery_status"],
+    "requires_clarification": false,
+    "should_pass_verification": true,
+    "description": "Delivery follow-up for in-transit parka order ORD1002"
+  },
+  {
+    "id": "TC04",
+    "category": "Delivery Follow-Up",
+    "query": "When will ORD1005 arrive?",
+    "expected_intent": "delivery_followup",
+    "expected_tools": ["get_order", "check_delivery_status"],
+    "requires_clarification": false,
+    "should_pass_verification": true,
+    "description": "Expected delivery date query for processing book order ORD1005"
+  },
+  {
+    "id": "TC05",
+    "category": "Return Eligibility",
+    "query": "Can I return order ORD1001?",
+    "expected_intent": "return_eligibility",
+    "expected_tools": ["get_order", "check_return_eligibility"],
+    "requires_clarification": false,
+    "should_pass_verification": true,
+    "description": "Return eligibility check for headphones delivered within 30 days (eligible)"
+  },
+  {
+    "id": "TC06",
+    "category": "Return Eligibility",
+    "query": "Can I return order ORD1003?",
+    "expected_intent": "return_eligibility",
+    "expected_tools": ["get_order", "check_return_eligibility"],
+    "requires_clarification": false,
+    "should_pass_verification": true,
+    "description": "Return eligibility check for espresso machine delivered >30 days ago (ineligible/expired)"
+  },
+  {
+    "id": "TC07",
+    "category": "Return Eligibility",
+    "query": "Is order ORD1007 eligible for a return?",
+    "expected_intent": "return_eligibility",
+    "expected_tools": ["get_order", "check_return_eligibility"],
+    "requires_clarification": false,
+    "should_pass_verification": true,
+    "description": "Return eligibility check for clearance shoes marked final sale (ineligible/final sale)"
+  },
+  {
+    "id": "TC08",
+    "category": "Return Eligibility",
+    "query": "Can I return order ORD1006?",
+    "expected_intent": "return_eligibility",
+    "expected_tools": ["get_order", "check_return_eligibility"],
+    "requires_clarification": false,
+    "should_pass_verification": true,
+    "description": "Return eligibility check for cancelled yoga mat order (ineligible/cancelled)"
+  },
+  {
+    "id": "TC09",
+    "category": "Return Eligibility",
+    "query": "Can I return order ORD1002?",
+    "expected_intent": "return_eligibility",
+    "expected_tools": ["get_order", "check_return_eligibility"],
+    "requires_clarification": false,
+    "should_pass_verification": true,
+    "description": "Return eligibility check for in-transit order before delivery (ineligible/undelivered)"
+  },
+  {
+    "id": "TC10",
+    "category": "Ticket Creation",
+    "query": "My order ORD1004 arrived damaged. Please create a support ticket.",
+    "expected_intent": "damaged_item_support",
+    "expected_tools": ["get_order", "create_support_ticket"],
+    "requires_clarification": false,
+    "should_pass_verification": true,
+    "description": "Support ticket creation for damaged keyboard in order ORD1004"
+  },
+  {
+    "id": "TC11",
+    "category": "Ticket Creation",
+    "query": "The item in ORD1009 was defective and broken upon opening. Please open a ticket.",
+    "expected_intent": "damaged_item_support",
+    "expected_tools": ["get_order", "create_support_ticket"],
+    "requires_clarification": false,
+    "should_pass_verification": true,
+    "description": "Support ticket creation for defective dutch oven in order ORD1009"
+  },
+  {
+    "id": "TC12",
+    "category": "Ticket Status",
+    "query": "What is the status of ticket TICKET1001?",
+    "expected_intent": "get_ticket",
+    "expected_tools": ["get_support_ticket"],
+    "requires_clarification": false,
+    "should_pass_verification": true,
+    "description": "Look up status of existing resolved support ticket TICKET1001"
+  },
+  {
+    "id": "TC13",
+    "category": "Ticket Status",
+    "query": "Check the progress of my ticket TICKET1003",
+    "expected_intent": "get_ticket",
+    "expected_tools": ["get_support_ticket"],
+    "requires_clarification": false,
+    "should_pass_verification": true,
+    "description": "Look up status of existing in-progress support ticket TICKET1003"
+  },
+  {
+    "id": "TC14",
+    "category": "Ticket Status",
+    "query": "What is the status of ticket TICKET9999?",
+    "expected_intent": "get_ticket",
+    "expected_tools": ["get_support_ticket"],
+    "requires_clarification": false,
+    "should_pass_verification": false,
+    "description": "Look up non-existent support ticket TICKET9999"
+  },
+  {
+    "id": "TC15",
+    "category": "Unknown Order",
+    "query": "Where is order ORD9999?",
+    "expected_intent": "order_tracking",
+    "expected_tools": ["get_order"],
+    "requires_clarification": false,
+    "should_pass_verification": false,
+    "description": "Tracking request for non-existent order ORD9999 (grounding test)"
+  },
+  {
+    "id": "TC16",
+    "category": "Unknown Order",
+    "query": "Track package ORD8888",
+    "expected_intent": "order_tracking",
+    "expected_tools": ["get_order"],
+    "requires_clarification": false,
+    "should_pass_verification": false,
+    "description": "Tracking request for non-existent order ORD8888 (grounding test)"
+  },
+  {
+    "id": "TC17",
+    "category": "Ambiguous Request",
+    "query": "I need help with my order.",
+    "expected_intent": "ambiguous_order_request",
+    "expected_tools": [],
+    "requires_clarification": true,
+    "should_pass_verification": true,
+    "description": "Ambiguous order help query without Order ID"
+  },
+  {
+    "id": "TC18",
+    "category": "Ambiguous Request",
+    "query": "When will my package arrive?",
+    "expected_intent": "ambiguous_order_request",
+    "expected_tools": [],
+    "requires_clarification": true,
+    "should_pass_verification": true,
+    "description": "Ambiguous arrival query without Order ID"
+  },
+  {
+    "id": "TC19",
+    "category": "General Policy FAQ",
+    "query": "What is your return policy?",
+    "expected_intent": "faq_policy",
+    "expected_tools": ["get_return_policy"],
+    "requires_clarification": false,
+    "should_pass_verification": true,
+    "description": "General FAQ request regarding company return window and conditions"
+  },
+  {
+    "id": "TC20",
+    "category": "General Policy FAQ",
+    "query": "How do refunds and returns work?",
+    "expected_intent": "faq_policy",
+    "expected_tools": ["get_return_policy"],
+    "requires_clarification": false,
+    "should_pass_verification": true,
+    "description": "General refund and return policy explanation"
+  },
+  {
+    "id": "TC21",
+    "category": "Multi-Step Workflow",
+    "query": "Check order ORD1001, tell me its delivery status, and check whether it can be returned.",
+    "expected_intent": "multi_step_order_inquiry",
+    "expected_tools": ["get_order", "check_delivery_status", "check_return_eligibility"],
+    "requires_clarification": false,
+    "should_pass_verification": true,
+    "description": "Multi-step inquiry combining order check, delivery status, and return eligibility"
+  },
+  {
+    "id": "TC22",
+    "category": "Multi-Step Workflow",
+    "query": "Check ORD1003, tell me if it arrived and if I can return it.",
+    "expected_intent": "multi_step_order_inquiry",
+    "expected_tools": ["get_order", "check_delivery_status", "check_return_eligibility"],
+    "requires_clarification": false,
+    "should_pass_verification": true,
+    "description": "Multi-step inquiry for expired order ORD1003 combining delivery and return check"
+  }
+]
